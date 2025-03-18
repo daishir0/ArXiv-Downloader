@@ -11,7 +11,7 @@ import datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
-def search_arxiv(keywords, max_results=100, use_or=False, date_from=None, date_to=None):
+def search_arxiv(keywords, max_results=1000, use_or=False, date_from=None, date_to=None):
     """
     arXivで指定されたキーワードを使用して論文を検索します。
     
@@ -62,6 +62,52 @@ def search_arxiv(keywords, max_results=100, use_or=False, date_from=None, date_t
     
     # 結果を取得（非推奨のメソッドを避ける）
     results = list(client.results(search))
+    
+    # 日付フィルタが指定されている場合、結果を日付でさらにフィルタリング
+    if date_from or date_to:
+        filtered_results = []
+        date_from_obj = None
+        date_to_obj = None
+        
+        if date_from:
+            year = int(date_from[:4])
+            month = int(date_from[4:6])
+            date_from_obj = datetime.datetime(year, month, 1)
+        
+        if date_to:
+            year = int(date_to[:4])
+            month = int(date_to[4:6])
+            # 月の最終日を設定
+            if month == 12:
+                next_year = year + 1
+                next_month = 1
+            else:
+                next_year = year
+                next_month = month + 1
+            date_to_obj = datetime.datetime(next_year, next_month, 1) - datetime.timedelta(days=1)
+        
+        print("日付フィルタリングを適用中...")
+        
+        for paper in results:
+            # paper.publishedはタイムゾーン情報を持つ可能性があるため、
+            # タイムゾーン情報を削除して比較する
+            paper_date = paper.published
+            if hasattr(paper_date, 'tzinfo') and paper_date.tzinfo is not None:
+                # タイムゾーン情報を削除（ローカル時間に変換）
+                paper_date = paper_date.replace(tzinfo=None)
+            
+            include_paper = True
+            
+            if date_from_obj and paper_date < date_from_obj:
+                include_paper = False
+            
+            if date_to_obj and paper_date > date_to_obj:
+                include_paper = False
+            
+            if include_paper:
+                filtered_results.append(paper)
+        
+        results = filtered_results
     
     print(f"{len(results)}件の論文が見つかりました。")
     return results
@@ -129,8 +175,8 @@ def main():
     parser.add_argument(
         '--max-results',
         type=int,
-        default=200,
-        help='取得する最大論文数（デフォルト: 200）'
+        default=1000,
+        help='取得する最大論文数（デフォルト: 1000）'
     )
     parser.add_argument(
         '--use-or',
