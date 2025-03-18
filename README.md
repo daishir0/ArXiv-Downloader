@@ -39,6 +39,8 @@ python arxiv_downloader.py KEYWORDS [OPTIONS]
 - `--max-results NUMBER`: Maximum number of papers to retrieve (default: 200)
 - `--use-or`: Use OR logic between keywords instead of AND (default: AND)
 - `--force-download`: Download papers even if they already exist locally
+- `--date-from YYYYMM`: Only retrieve papers submitted on or after the specified date (format: YYYYMM)
+- `--date-to YYYYMM`: Only retrieve papers submitted on or before the specified date (format: YYYYMM)
 
 ### Examples
 1. Search for papers about "quantum computing":
@@ -54,6 +56,16 @@ python arxiv_downloader.py KEYWORDS [OPTIONS]
 3. Force re-download of papers about "neural networks":
    ```
    python arxiv_downloader.py "neural networks" --force-download
+   ```
+
+4. Search for papers about "transformer" submitted since October 2024:
+   ```
+   python arxiv_downloader.py "transformer" --date-from 202410
+   ```
+
+5. Search for papers about "large language models" submitted between January and March 2025:
+   ```
+   python arxiv_downloader.py "large language models" --date-from 202501 --date-to 202503
    ```
 
 ## Notes
@@ -108,6 +120,8 @@ python arxiv_downloader.py キーワード [オプション]
 - `--max-results 数値`: 取得する最大論文数（デフォルト: 200）
 - `--use-or`: キーワード間にOR論理を使用（デフォルト: AND）
 - `--force-download`: ローカルに既に存在する論文も再ダウンロード
+- `--date-from YYYYMM`: 指定した日付以降に投稿された論文のみを取得（形式: YYYYMM）
+- `--date-to YYYYMM`: 指定した日付以前に投稿された論文のみを取得（形式: YYYYMM）
 
 ### 使用例
 1. 「量子コンピューティング」に関する論文を検索:
@@ -123,6 +137,16 @@ python arxiv_downloader.py キーワード [オプション]
 3. 「ニューラルネットワーク」に関する論文を強制的に再ダウンロード:
    ```
    python arxiv_downloader.py "neural networks" --force-download
+   ```
+
+4. 2024年10月以降に投稿された「トランスフォーマー」に関する論文を検索:
+   ```
+   python arxiv_downloader.py "transformer" --date-from 202410
+   ```
+
+5. 2025年1月から3月の間に投稿された「大規模言語モデル」に関する論文を検索:
+   ```
+   python arxiv_downloader.py "large language models" --date-from 202501 --date-to 202503
    ```
 
 ## 注意点
