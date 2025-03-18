@@ -36,7 +36,7 @@ python arxiv_downloader.py KEYWORDS [OPTIONS]
 - `KEYWORDS`: One or more search terms (required)
 
 ### Options
-- `--max-results NUMBER`: Maximum number of papers to retrieve (default: 200)
+- `--max-results NUMBER`: Maximum number of papers to retrieve (default: 1000)
 - `--use-or`: Use OR logic between keywords instead of AND (default: AND)
 - `--force-download`: Download papers even if they already exist locally
 - `--date-from YYYYMM`: Only retrieve papers submitted on or after the specified date (format: YYYYMM)
@@ -117,7 +117,7 @@ python arxiv_downloader.py キーワード [オプション]
 - `キーワード`: 1つ以上の検索語（必須）
 
 ### オプション
-- `--max-results 数値`: 取得する最大論文数（デフォルト: 200）
+- `--max-results 数値`: 取得する最大論文数（デフォルト: 1000）
 - `--use-or`: キーワード間にOR論理を使用（デフォルト: AND）
 - `--force-download`: ローカルに既に存在する論文も再ダウンロード
 - `--date-from YYYYMM`: 指定した日付以降に投稿された論文のみを取得（形式: YYYYMM）
