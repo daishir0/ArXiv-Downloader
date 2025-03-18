@@ -7,10 +7,11 @@ import os
 import sys
 import time
 import argparse
+import datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
-def search_arxiv(keywords, max_results=100, use_or=False):
+def search_arxiv(keywords, max_results=100, use_or=False, date_from=None, date_to=None):
     """
     arXivで指定されたキーワードを使用して論文を検索します。
     
@@ -18,6 +19,8 @@ def search_arxiv(keywords, max_results=100, use_or=False):
         keywords (list): 検索キーワードのリスト
         max_results (int): 取得する最大論文数
         use_or (bool): キーワードをORで結合するかどうか
+        date_from (str): この日付以降の論文を検索 (YYYYMM形式)
+        date_to (str): この日付以前の論文を検索 (YYYYMM形式)
     
     Returns:
         list: 検索結果の論文リスト
@@ -29,6 +32,23 @@ def search_arxiv(keywords, max_results=100, use_or=False):
         query = ' OR '.join(keywords)
     else:
         query = ' AND '.join(keywords)
+    
+    # 日付フィルタを追加
+    date_filter = []
+    if date_from:
+        date_filter.append(f"submittedDate:[{date_from} TO 999912]")
+    if date_to:
+        # すでにdate_fromが設定されている場合は上書き
+        if date_from:
+            date_filter = [f"submittedDate:[{date_from} TO {date_to}]"]
+        else:
+            date_filter.append(f"submittedDate:[000001 TO {date_to}]")
+    
+    # 日付フィルタがある場合、クエリに追加
+    if date_filter:
+        query = f"({query}) AND {' AND '.join(date_filter)}"
+    
+    print(f"検索クエリ: {query}")
     
     # arXivクライアントを作成
     client = arxiv.Client()
@@ -122,6 +142,14 @@ def main():
         action='store_true',
         help='既にダウンロード済みのファイルも再ダウンロードする'
     )
+    parser.add_argument(
+        '--date-from',
+        help='この日付以降に投稿された論文を検索（YYYYMM形式、例：202410）'
+    )
+    parser.add_argument(
+        '--date-to',
+        help='この日付以前に投稿された論文を検索（YYYYMM形式、例：202503）'
+    )
     
     # 引数を解析
     args = parser.parse_args()
@@ -134,7 +162,13 @@ def main():
     os.makedirs(download_dir, exist_ok=True)
     
     # arXivを検索
-    papers = search_arxiv(keywords, args.max_results, args.use_or)
+    papers = search_arxiv(
+        keywords,
+        args.max_results,
+        args.use_or,
+        args.date_from,
+        args.date_to
+    )
     
     if not papers:
         print("論文が見つかりませんでした。")
