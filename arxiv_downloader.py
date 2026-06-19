@@ -4,8 +4,10 @@
 import arxiv
 import requests
 import os
+import re
 import sys
 import time
+import csv
 import argparse
 import datetime
 from pathlib import Path
@@ -159,6 +161,142 @@ def download_pdf(paper, download_dir, force_download=False):
         print(f"ダウンロード失敗: {arxiv_id} - エラー: {str(e)}")
         return False
 
+def _get_arxiv_id(paper):
+    """
+    論文オブジェクトからarXiv ID（バージョン付き）を取得します。
+    新形式（例：2401.12345v1）に加え、旧形式の接頭辞付きID
+    （例：hep-th/9901001v3）も接頭辞を保持したまま取得します。
+    """
+    # entry_id 例: http://arxiv.org/abs/2401.12345v1
+    #              http://arxiv.org/abs/hep-th/9901001v3
+    path = urlparse(paper.entry_id).path
+    # '/abs/' 以降を切り出し（接頭辞 hep-th/ などを落とさない）
+    return re.sub(r'^.*?/abs/', '', path)
+
+def _strip_version(arxiv_id):
+    """
+    arXiv IDから末尾のバージョン情報（v1, v2 ...）を除去します。
+    """
+    return re.sub(r'v\d+$', '', arxiv_id)
+
+def _escape_bibtex(text):
+    """
+    BibTeXの特殊文字をエスケープします。
+    """
+    if text is None:
+        return ""
+    text = str(text)
+    # バックスラッシュは一旦プレースホルダに退避する。
+    # 先に \textbackslash{} へ変換すると、後続の { } エスケープが
+    # 挿入した波括弧まで壊してしまうため。
+    placeholder = '\x00BACKSLASH\x00'
+    text = text.replace('\\', placeholder)
+    replacements = {
+        '&': r'\&',
+        '%': r'\%',
+        '$': r'\$',
+        '#': r'\#',
+        '_': r'\_',
+        '{': r'\{',
+        '}': r'\}',
+        '~': r'\textasciitilde{}',
+        '^': r'\textasciicircum{}',
+    }
+    for char, escaped in replacements.items():
+        text = text.replace(char, escaped)
+    # 退避していたバックスラッシュを最終形に戻す
+    text = text.replace(placeholder, r'\textbackslash{}')
+    # 改行・連続する空白を1つのスペースにまとめる
+    return ' '.join(text.split())
+
+def _make_bibtex_key(paper, arxiv_id):
+    """
+    BibTeXのエントリキーを 著者名_年_arXivID 形式で生成します。
+    """
+    if paper.authors:
+        # 筆頭著者の姓（最後の単語）を使用
+        first_author = paper.authors[0].name.split()[-1]
+    else:
+        first_author = "unknown"
+    # キーとして安全な文字のみを残す
+    first_author = ''.join(c for c in first_author if c.isalnum())
+    year = paper.published.year if paper.published else "nd"
+    # arXiv IDのドット・スラッシュをアンダースコアに変換
+    safe_id = arxiv_id.replace('.', '_').replace('/', '_')
+    return f"{first_author}_{year}_{safe_id}"
+
+def _csv_safe(value):
+    """
+    CSVのフォーミュラインジェクションを防ぎます。
+    セル先頭が数式として解釈されうる文字（= + - @ およびタブ/改行）の場合、
+    先頭にシングルクォートを付与して無害化します。
+    arXiv由来のタイトル・著者・要約などは外部入力のため必須の処理です。
+    """
+    s = str(value or "")
+    if s and s[0] in ('=', '+', '-', '@', '\t', '\r'):
+        return "'" + s
+    return s
+
+def export_metadata(papers, download_dir, export_format):
+    """
+    検索結果の書誌情報をBibTeXおよび/またはCSV形式で出力します。
+
+    Args:
+        papers (list): 論文オブジェクトのリスト
+        download_dir (str): 出力先ディレクトリ
+        export_format (str): 'bib', 'csv', または 'both'
+    """
+    want_bib = export_format in ('bib', 'both')
+    want_csv = export_format in ('csv', 'both')
+
+    if want_bib:
+        bib_path = os.path.join(download_dir, "metadata.bib")
+        with open(bib_path, 'w', encoding='utf-8') as f:
+            for paper in papers:
+                arxiv_id = _get_arxiv_id(paper)
+                key = _make_bibtex_key(paper, arxiv_id)
+                authors = ' and '.join(a.name for a in paper.authors)
+                # バージョン情報を除いた純粋なID（eprint用）
+                eprint = _strip_version(arxiv_id)
+                year = paper.published.year if paper.published else ""
+
+                f.write(f"@article{{{key},\n")
+                f.write(f"  title = {{{_escape_bibtex(paper.title)}}},\n")
+                f.write(f"  author = {{{_escape_bibtex(authors)}}},\n")
+                f.write(f"  year = {{{year}}},\n")
+                f.write(f"  eprint = {{{eprint}}},\n")
+                f.write("  archivePrefix = {arXiv},\n")
+                if paper.primary_category:
+                    f.write(f"  primaryClass = {{{paper.primary_category}}},\n")
+                if paper.doi:
+                    f.write(f"  doi = {{{_escape_bibtex(paper.doi)}}},\n")
+                if paper.journal_ref:
+                    f.write(f"  journal = {{{_escape_bibtex(paper.journal_ref)}}},\n")
+                f.write(f"  url = {{{paper.entry_id}}}\n")
+                f.write("}\n\n")
+        print(f"BibTeXメタデータを出力しました: {bib_path}")
+
+    if want_csv:
+        csv_path = os.path.join(download_dir, "metadata.csv")
+        with open(csv_path, 'w', encoding='utf-8', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow([
+                'arxiv_id', 'title', 'authors', 'published', 'doi',
+                'categories', 'pdf_url', 'abstract'
+            ])
+            for paper in papers:
+                arxiv_id = _get_arxiv_id(paper)
+                authors = '; '.join(a.name for a in paper.authors)
+                published = paper.published.strftime('%Y-%m-%d') if paper.published else ""
+                categories = '; '.join(paper.categories) if paper.categories else ""
+                # 要約内の改行をスペースに変換（CSVの可読性のため）
+                abstract = ' '.join(paper.summary.split()) if paper.summary else ""
+                writer.writerow([_csv_safe(v) for v in [
+                    arxiv_id, paper.title, authors, published, paper.doi or "",
+                    categories, paper.pdf_url, abstract
+                ]])
+        print(f"CSVメタデータを出力しました: {csv_path}")
+
 def main():
     """
     メイン関数
@@ -196,7 +334,13 @@ def main():
         '--date-to',
         help='この日付以前に投稿された論文を検索（YYYYMM形式、例：202503）'
     )
-    
+    parser.add_argument(
+        '--export',
+        choices=['bib', 'csv', 'both'],
+        help='書誌情報を出力する形式（bib: BibTeX, csv: CSV, both: 両方）。'
+             'ZoteroやMendeleyなどの文献管理ソフトに取り込めます。'
+    )
+
     # 引数を解析
     args = parser.parse_args()
     
@@ -224,7 +368,13 @@ def main():
     print("\n検索結果:")
     for i, paper in enumerate(papers, 1):
         print(f"{i}. {paper.title} ({paper.published.year})")
-    
+
+    # 書誌情報をエクスポート（指定された場合）
+    # PDFのダウンロード成否に関わらず、検索できた全件を対象に出力する
+    if args.export:
+        print("\n書誌情報をエクスポート中...")
+        export_metadata(papers, download_dir, args.export)
+
     # PDFをダウンロード
     print("\nPDFのダウンロードを開始します...")
     success_count = 0
