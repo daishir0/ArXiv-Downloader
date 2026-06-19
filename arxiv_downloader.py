@@ -213,6 +213,18 @@ def _make_bibtex_key(paper, arxiv_id):
     safe_id = arxiv_id.replace('.', '_').replace('/', '_')
     return f"{first_author}{year}_{safe_id}"
 
+def _csv_safe(value):
+    """
+    CSVのフォーミュラインジェクションを防ぎます。
+    セル先頭が数式として解釈されうる文字（= + - @ およびタブ/改行）の場合、
+    先頭にシングルクォートを付与して無害化します。
+    arXiv由来のタイトル・著者・要約などは外部入力のため必須の処理です。
+    """
+    s = str(value or "")
+    if s and s[0] in ('=', '+', '-', '@', '\t', '\r'):
+        return "'" + s
+    return s
+
 def export_metadata(papers, download_dir, export_format):
     """
     検索結果の書誌情報をBibTeXおよび/またはCSV形式で出力します。
@@ -267,10 +279,10 @@ def export_metadata(papers, download_dir, export_format):
                 categories = '; '.join(paper.categories) if paper.categories else ""
                 # 要約内の改行をスペースに変換（CSVの可読性のため）
                 abstract = ' '.join(paper.summary.split()) if paper.summary else ""
-                writer.writerow([
+                writer.writerow([_csv_safe(v) for v in [
                     arxiv_id, paper.title, authors, published, paper.doi or "",
                     categories, paper.pdf_url, abstract
-                ])
+                ]])
         print(f"CSVメタデータを出力しました: {csv_path}")
 
 def main():
