@@ -41,6 +41,7 @@ python arxiv_downloader.py KEYWORDS [OPTIONS]
 - `--force-download`: Download papers even if they already exist locally
 - `--date-from YYYYMM`: Only retrieve papers submitted on or after the specified date (format: YYYYMM)
 - `--date-to YYYYMM`: Only retrieve papers submitted on or before the specified date (format: YYYYMM)
+- `--export {bib,csv,both}`: Export bibliographic metadata (title, authors, DOI, etc.) of the search results so they can be imported into citation managers such as Zotero or Mendeley. `bib` writes `metadata.bib` (BibTeX), `csv` writes `metadata.csv`, and `both` writes both files into the `dl` directory.
 
 ### Examples
 1. Search for papers about "quantum computing":
@@ -68,11 +69,17 @@ python arxiv_downloader.py KEYWORDS [OPTIONS]
    python arxiv_downloader.py "large language models" --date-from 202501 --date-to 202503
    ```
 
+6. Search for papers about "quantum computing" and export their metadata as BibTeX:
+   ```
+   python arxiv_downloader.py "quantum computing" --max-results 50 --export bib
+   ```
+
 ## Notes
 - Downloaded PDFs are stored in a `dl` subdirectory within the project folder
 - The tool automatically avoids downloading duplicate papers unless the `--force-download` option is used
 - A small delay between downloads helps avoid hitting arXiv's API rate limits
 - Papers are sorted by submission date, with the most recent papers first
+- When `--export` is used, metadata files (`metadata.bib` / `metadata.csv`) are written to the `dl` directory and cover all papers found by the search, regardless of whether each PDF downloads successfully
 
 ## License
 This project is licensed under the MIT License - see the LICENSE file for details.
@@ -122,6 +129,7 @@ python arxiv_downloader.py キーワード [オプション]
 - `--force-download`: ローカルに既に存在する論文も再ダウンロード
 - `--date-from YYYYMM`: 指定した日付以降に投稿された論文のみを取得（形式: YYYYMM）
 - `--date-to YYYYMM`: 指定した日付以前に投稿された論文のみを取得（形式: YYYYMM）
+- `--export {bib,csv,both}`: 検索結果の書誌情報（タイトル・著者・DOIなど）を出力し、ZoteroやMendeleyなどの文献管理ソフトに取り込めるようにします。`bib`は`metadata.bib`（BibTeX）、`csv`は`metadata.csv`、`both`は両方を`dl`ディレクトリに出力します。
 
 ### 使用例
 1. 「量子コンピューティング」に関する論文を検索:
@@ -149,11 +157,17 @@ python arxiv_downloader.py キーワード [オプション]
    python arxiv_downloader.py "large language models" --date-from 202501 --date-to 202503
    ```
 
+6. 「量子コンピューティング」に関する論文を検索し、書誌情報をBibTeXで出力:
+   ```
+   python arxiv_downloader.py "quantum computing" --max-results 50 --export bib
+   ```
+
 ## 注意点
 - ダウンロードされたPDFはプロジェクトフォルダ内の`dl`サブディレクトリに保存されます
 - `--force-download`オプションを使用しない限り、ツールは重複した論文のダウンロードを自動的に回避します
 - ダウンロード間の小さな遅延により、arXivのAPIレート制限に達するのを防ぎます
 - 論文は投稿日でソートされ、最新の論文が最初に表示されます
+- `--export`を使用すると、メタデータファイル（`metadata.bib` / `metadata.csv`）が`dl`ディレクトリに出力されます。これは各PDFのダウンロード成否に関わらず、検索でヒットした全論文を対象とします
 
 ## ライセンス
 このプロジェクトはMITライセンスの下でライセンスされています。詳細はLICENSEファイルを参照してください。
