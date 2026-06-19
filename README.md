@@ -70,7 +70,7 @@ python arxiv_downloader.py KEYWORDS [OPTIONS]
    ```
 
 6. Search for papers about "quantum computing" and export their metadata as BibTeX:
-   ```
+   ```bash
    python arxiv_downloader.py "quantum computing" --max-results 50 --export bib
    ```
 
@@ -158,7 +158,7 @@ python arxiv_downloader.py キーワード [オプション]
    ```
 
 6. 「量子コンピューティング」に関する論文を検索し、書誌情報をBibTeXで出力:
-   ```
+   ```bash
    python arxiv_downloader.py "quantum computing" --max-results 50 --export bib
    ```
 

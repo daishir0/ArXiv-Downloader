@@ -4,6 +4,7 @@
 import arxiv
 import requests
 import os
+import re
 import sys
 import time
 import csv
@@ -162,10 +163,21 @@ def download_pdf(paper, download_dir, force_download=False):
 
 def _get_arxiv_id(paper):
     """
-    論文オブジェクトからarXiv ID（バージョン付き、例：2401.12345v1）を取得します。
+    論文オブジェクトからarXiv ID（バージョン付き）を取得します。
+    新形式（例：2401.12345v1）に加え、旧形式の接頭辞付きID
+    （例：hep-th/9901001v3）も接頭辞を保持したまま取得します。
     """
-    parsed_url = urlparse(paper.entry_id)
-    return parsed_url.path.split('/')[-1]
+    # entry_id 例: http://arxiv.org/abs/2401.12345v1
+    #              http://arxiv.org/abs/hep-th/9901001v3
+    path = urlparse(paper.entry_id).path
+    # '/abs/' 以降を切り出し（接頭辞 hep-th/ などを落とさない）
+    return re.sub(r'^.*?/abs/', '', path)
+
+def _strip_version(arxiv_id):
+    """
+    arXiv IDから末尾のバージョン情報（v1, v2 ...）を除去します。
+    """
+    return re.sub(r'v\d+$', '', arxiv_id)
 
 def _escape_bibtex(text):
     """
@@ -211,7 +223,7 @@ def _make_bibtex_key(paper, arxiv_id):
     year = paper.published.year if paper.published else "nd"
     # arXiv IDのドット・スラッシュをアンダースコアに変換
     safe_id = arxiv_id.replace('.', '_').replace('/', '_')
-    return f"{first_author}{year}_{safe_id}"
+    return f"{first_author}_{year}_{safe_id}"
 
 def _csv_safe(value):
     """
@@ -245,7 +257,7 @@ def export_metadata(papers, download_dir, export_format):
                 key = _make_bibtex_key(paper, arxiv_id)
                 authors = ' and '.join(a.name for a in paper.authors)
                 # バージョン情報を除いた純粋なID（eprint用）
-                eprint = arxiv_id.split('v')[0] if 'v' in arxiv_id else arxiv_id
+                eprint = _strip_version(arxiv_id)
                 year = paper.published.year if paper.published else ""
 
                 f.write(f"@article{{{key},\n")
@@ -253,7 +265,7 @@ def export_metadata(papers, download_dir, export_format):
                 f.write(f"  author = {{{_escape_bibtex(authors)}}},\n")
                 f.write(f"  year = {{{year}}},\n")
                 f.write(f"  eprint = {{{eprint}}},\n")
-                f.write(f"  archivePrefix = {{arXiv}},\n")
+                f.write("  archivePrefix = {arXiv},\n")
                 if paper.primary_category:
                     f.write(f"  primaryClass = {{{paper.primary_category}}},\n")
                 if paper.doi:
